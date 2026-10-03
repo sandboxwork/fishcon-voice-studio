@@ -2,6 +2,21 @@
 
 한국어 UI의 정적 웹앱입니다. 모든 요청과 음성 처리는 사용자의 브라우저에서 실행됩니다. 애플리케이션 백엔드, API 프록시, 데이터베이스, 서비스 워커가 없습니다.
 
+## GitHub Pages 배포
+
+[웹사이트 열기](https://sandboxwork.github.io/fishcon-voice-studio/) · [GitHub 저장소](https://github.com/sandboxwork/fishcon-voice-studio) · [배포 상태](https://github.com/sandboxwork/fishcon-voice-studio/actions/workflows/pages.yml)
+
+`main` 브랜치에 푸시하면 `.github/workflows/pages.yml`이 JavaScript 검사와 단위 테스트를 실행하고, Chrome 확장판을 다시 빌드한 뒤 `dist/`를 GitHub Pages에 배포합니다. GitHub 저장소의 **Settings → Pages → Source**는 **GitHub Actions**로 설정합니다. 수동 재배포는 **Actions → Build and deploy GitHub Pages → Run workflow**에서 실행합니다.
+
+```bash
+npm ci
+npm run check
+npm test
+npm run build
+```
+
+HTML, CSS, JavaScript와 확장판 다운로드 링크는 모두 상대 경로를 사용하므로 `https://사용자.github.io/저장소/` 하위 경로에서도 동작합니다. Pages는 정적 파일만 제공하며 Fish Audio 요청을 중계하지 않습니다. GitHub PAT나 Fish Audio API 키를 저장소 또는 Actions secrets에 추가할 필요가 없습니다. 배포는 GitHub가 실행마다 발급하는 `GITHUB_TOKEN`과 OIDC를 사용합니다.
+
 ## 실행
 
 Node.js 20 이상으로 실행합니다. 일반 실행에는 패키지 설치가 필요 없습니다.
