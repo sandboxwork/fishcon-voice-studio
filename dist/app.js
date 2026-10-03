@@ -4,6 +4,11 @@ const $ = id => document.getElementById(id);
 const form = $('studio-form');
 const script = $('script');
 const isExtension = location.protocol === 'chrome-extension:';
+const SETTINGS_KEY = 'fishcon:studio:v1';
+const settingsFields = {
+  apiKey: $('api-key'), model: $('model'), referenceId: $('voice-id'),
+  speed: $('speed'), format: $('format'), text: script,
+};
 let current = null;
 let active = null;
 let sequence = 0;
@@ -19,6 +24,56 @@ function status(message, type = '') {
 function refreshScript() {
   $('character-count').textContent = script.value.length.toLocaleString('ko-KR');
   $('insert-example').disabled = Boolean(script.value) || Boolean(active);
+}
+
+function refreshSettings() {
+  refreshScript();
+  $('speed-value').textContent = `${Number($('speed').value).toFixed(2)}×`;
+  $('format-help').textContent = $('format').value === 'wav' ? '· 16-bit PCM' : '· 192 kbps';
+}
+
+function storageStatus(message, error = false) {
+  const element = $('storage-status');
+  if (element.textContent !== message) element.textContent = message;
+  element.dataset.error = String(error);
+}
+
+function saveSettings() {
+  try {
+    const saved = Object.fromEntries(Object.entries(settingsFields).map(([name, field]) => [name, name === 'speed' ? Number(field.value) : field.value]));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(saved));
+    storageStatus('API 키·설정·대본을 이 브라우저에 저장했습니다.');
+  } catch {
+    storageStatus('설정을 저장하지 못했습니다. 브라우저의 저장 공간과 사이트 데이터 권한을 확인하세요.', true);
+  }
+}
+
+function restoreSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw === null) return;
+    const saved = JSON.parse(raw);
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('Invalid settings');
+    for (const name of ['apiKey', 'referenceId', 'text']) {
+      const field = settingsFields[name];
+      if (typeof saved[name] === 'string' && saved[name].length <= field.maxLength) field.value = saved[name];
+    }
+    for (const name of ['model', 'format']) {
+      const field = settingsFields[name];
+      if ([...field.options].some(option => option.value === saved[name])) field.value = saved[name];
+    }
+    if (typeof saved.speed === 'number' && Number.isFinite(saved.speed) && saved.speed >= 0.5 && saved.speed <= 2) $('speed').value = String(saved.speed);
+    storageStatus('저장된 API 키·설정·대본을 불러왔습니다.');
+  } catch {
+    storageStatus('저장된 설정을 불러오지 못했습니다. 설정을 다시 입력하거나 저장된 설정을 삭제하세요.', true);
+  }
+}
+
+function hideApiKey() {
+  $('api-key').type = 'password';
+  $('toggle-key').textContent = '보기';
+  $('toggle-key').setAttribute('aria-pressed', 'false');
+  $('toggle-key').setAttribute('aria-label', 'API 키 표시');
 }
 
 function busy(value) {
@@ -87,6 +142,7 @@ function showClip(clip) {
 
 async function generate() {
   if (active || !form.reportValidity()) return;
+  saveSettings();
   const input = {
     apiKey: $('api-key').value, text: script.value, model: $('model').value,
     referenceId: $('voice-id').value, speed: Number($('speed').value), format: $('format').value,
@@ -125,6 +181,22 @@ async function generate() {
 }
 
 form.addEventListener('submit', event => { event.preventDefault(); void generate(); });
+for (const eventName of ['input', 'change']) {
+  form.addEventListener(eventName, event => {
+    if (Object.values(settingsFields).includes(event.target)) saveSettings();
+  });
+}
+$('clear-settings').addEventListener('click', () => {
+  try {
+    localStorage.removeItem(SETTINGS_KEY);
+    form.reset();
+    hideApiKey();
+    refreshSettings();
+    storageStatus('저장된 API 키·설정·대본을 삭제했습니다.');
+  } catch {
+    storageStatus('저장된 설정을 삭제하지 못했습니다. 브라우저 설정에서 이 사이트의 데이터를 삭제하세요.', true);
+  }
+});
 $('cancel').addEventListener('click', () => active?.abort());
 $('toggle-key').addEventListener('click', () => {
   const show = $('api-key').type === 'password';
@@ -137,7 +209,7 @@ script.addEventListener('input', refreshScript);
 $('insert-example').addEventListener('click', () => {
   if (script.value) return;
   script.value = '오늘도 당신의 이야기는 계속됩니다. 작은 생각 하나가 새로운 시작이 되고, 익숙한 풍경은 또 다른 영감이 됩니다. 이제, 당신만의 목소리로 이야기를 들려주세요.';
-  refreshScript(); script.focus();
+  refreshScript(); saveSettings(); script.focus();
 });
 $('speed').addEventListener('input', () => { $('speed-value').textContent = `${Number($('speed').value).toFixed(2)}×`; });
 $('format').addEventListener('change', () => { $('format-help').textContent = $('format').value === 'wav' ? '· 16-bit PCM' : '· 192 kbps'; });
@@ -183,22 +255,21 @@ if (document.modelContext?.registerTool) {
   try {
     Promise.resolve(document.modelContext.registerTool({
       name: 'stage_speech_text', title: '음성 대본 입력',
-      description: '대본을 화면에 입력합니다. 음성을 생성하거나 API 키를 읽지 않습니다. 사용자가 생성 버튼을 눌러야 합니다.',
+      description: '대본을 화면에 입력하고 이 브라우저에 저장합니다. API 키를 노출하거나 음성을 생성하지 않습니다. 사용자가 생성 버튼을 눌러야 합니다.',
       inputSchema: { type: 'object', properties: { text: { type: 'string', minLength: 1, maxLength: 10000 } }, required: ['text'], additionalProperties: false },
       annotations: { readOnlyHint: false, untrustedContentHint: false },
       execute(input) {
         if (!input || typeof input.text !== 'string' || !input.text.trim() || input.text.length > 10000 || Object.keys(input).some(key => key !== 'text')) throw new Error('1~10,000자 대본만 입력하세요.');
         if (active) throw new Error('음성 생성이 끝난 뒤 대본을 변경하세요.');
-        script.value = input.text; refreshScript();
+        script.value = input.text; refreshScript(); saveSettings();
         return { staged: true, characters: script.value.length, generated: false };
       },
     }, { signal: lifecycle.signal })).catch(() => {});
   } catch { /* WebMCP is optional. */ }
 }
 window.addEventListener('pagehide', event => {
-  active?.abort(); $('api-key').value = ''; $('api-key').type = 'password';
-  $('toggle-key').textContent = '보기'; $('toggle-key').setAttribute('aria-pressed', 'false');
-  $('toggle-key').setAttribute('aria-label', 'API 키 표시');
+  active?.abort(); hideApiKey();
   if (!event.persisted) { lifecycle.abort(); if (current) URL.revokeObjectURL(current.url); }
 });
-refreshScript();
+restoreSettings();
+refreshSettings();

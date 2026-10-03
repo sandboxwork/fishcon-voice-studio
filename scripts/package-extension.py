@@ -13,8 +13,8 @@ for asset in assets:
 manifest = {
     'manifest_version': 3,
     'name': 'Fishcon — 보이스 스튜디오',
-    'version': '1.0.0',
-    'description': 'API 키를 저장하지 않고 Fish Audio로 직접 요청하는 음성 제작 도구',
+    'version': '1.1.0',
+    'description': 'API 키와 설정을 이 브라우저에 기억하고 Fish Audio로 직접 요청하는 음성 제작 도구',
     'permissions': ['clipboardWrite'],
     'host_permissions': ['https://api.fish.audio/*'],
     'action': {'default_title': 'Fishcon', 'default_popup': 'launch.html'},

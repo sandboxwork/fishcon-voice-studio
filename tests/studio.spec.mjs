@@ -41,10 +41,10 @@ test('direct request, playback, original download and actual 48 kHz PCM export',
   expect(exported.readUInt16LE(34)).toBe(16);
   expect(exported.readUInt16LE(22)).toBe(1);
   expect(exported.readUInt32LE(40)).toBe(48000 * 2);
-  expect(await page.evaluate(() => ({ local: localStorage.length, session: sessionStorage.length }))).toEqual({ local: 0, session: 0 });
+  expect(await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('fishcon:studio:v1'))).sort())).toEqual(['apiKey', 'format', 'model', 'referenceId', 'speed', 'text']);
   await page.screenshot({ path: 'test-results/desktop-complete.png', fullPage: true });
   await page.reload();
-  await expect(page.locator('#api-key')).toHaveValue('');
+  await expect(page.locator('#api-key')).toHaveValue('test-key-not-real');
   await expect(page.locator('#audio-result')).toBeHidden();
 });
 
@@ -151,6 +151,7 @@ test('optional agent tool stages text through the same state, rejects bad input,
   const output = await page.evaluate(() => window.stagedTool.execute({ text: '에이전트가 입력한 대본' }));
   expect(output).toEqual({ staged: true, characters: 12, generated: false });
   await expect(page.locator('#script')).toHaveValue('에이전트가 입력한 대본');
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('fishcon:studio:v1')).text)).toBe('에이전트가 입력한 대본');
   const error = await page.evaluate(() => { try { window.stagedTool.execute({ text: ' ', apiKey: 'not-allowed' }); } catch (e) { return e.message; } });
   expect(error).toContain('10,000자');
   await expect(page.locator('#script')).toHaveValue('에이전트가 입력한 대본');
