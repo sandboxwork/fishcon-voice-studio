@@ -1,0 +1,7 @@
+node_modules/
+extension/
+test-results/
+playwright-report/
+.sites-runtime/
+.env*
+!.env.example

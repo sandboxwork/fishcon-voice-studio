@@ -1,0 +1,16 @@
+{
+  "name": "fishcon",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "check": "node --check dist/app.js && node --check dist/audio.js",
+    "build": "python3 scripts/package-extension.py",
+    "test": "node --test tests/audio.test.mjs",
+    "test:browser": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}
